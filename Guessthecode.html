@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>🎮 Code Unlock Game</title>
+  <style>
+    body {
+      font-family: 'Press Start 2P', cursive;
+      background-image: url('https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDRnc3g4azFqeXhtYjNpYzVhMW9pY2hhNmVhMWcycWt6enEyaXV6MiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/GDEYNQ1wodqeGpmbdR/giphy.gif');
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center center;
+      color: #ffffff;
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    #playerScreen,
+    #gameBox {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    #playerScreen {
+      background-color: rgba(0, 0, 0, 0.8);
+      padding: 20px;
+      border-radius: 25px;
+      box-shadow: 0 0 25px #1b1c1d;
+      width: 90%;
+      max-width: 800px;
+      height: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .game-box {
+      display: none;
+      width: 90%;
+      max-width: 500px;
+      background-color: rgba(0, 0, 0, 0.7);
+      padding: 20px;
+      border-radius: 20px;
+      box-shadow: 0 0 20px #ff0000;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .digit-display {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .digit {
+      width: 50px;
+      height: 50px;
+      font-size: 30px;
+      text-align: center;
+      background: #b71c1c;
+      color: #fff;
+      border: 2px solid #feee59;
+      border-radius: 8px;
+    }
+
+    .correct {
+      background: #00ff00 !important;
+      color: #000;
+      border-color: #fff;
+    }
+
+    .wrong {
+      background: #f44336 !important;
+    }
+
+    .keypad {
+      display: grid;
+      grid-template-columns: repeat(3, 60px);
+      gap: 10px;
+      justify-content: center;
+      margin: 20px auto;
+    }
+
+    .key {
+      background: #ffcc00;
+      border: 2px solid #333;
+      font-size: 20px;
+      border-radius: 10px;
+      padding: 10px;
+      cursor: pointer;
+      box-shadow: 2px 2px #222;
+    }
+
+    select, input[type="text"] {
+      padding: 10px;
+      margin: 10px;
+      font-family: 'Press Start 2P';
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 14px;
+      border: none;
+      border-radius: 10px;
+      background-color: #03a9f4;
+      color: white;
+      cursor: pointer;
+      font-family: 'Press Start 2P';
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+</head>
+
+<body>
+  <div class="container">
+    <div id="playerScreen">
+      <h2>Welcome to the Code Unlock Game</h2>
+      <input type="text" id="playerName" placeholder="Enter Your Name" />
+      <p style="font-size:10px; color:#ccc; margin-top:10px;">
+        Choose a difficulty, enter your name and start guessing the secret code!
+      </p>
+      <select id="difficulty">
+        <option value="3">Easy (3 Digits)</option>
+        <option value="4" selected>Medium (4 Digits)</option>
+        <option value="5">Hard (5 Digits)</option>
+      </select>
+      <br><br>
+      <button onclick="startGame()">▶ Start Game</button>
+    </div>
+
+    <div class="game-box" id="gameBox">
+      <h2 id="welcomeMsg"></h2>
+      <p id="timerDisplay"></p>
+      <p id="attemptsDisplay"></p>
+      <div class="digit-display" id="digitContainer"></div>
+      <div class="keypad">
+        <div class="key" onclick="press(1)">1</div>
+        <div class="key" onclick="press(2)">2</div>
+        <div class="key" onclick="press(3)">3</div>
+        <div class="key" onclick="press(4)">4</div>
+        <div class="key" onclick="press(5)">5</div>
+        <div class="key" onclick="press(6)">6</div>
+        <div class="key" onclick="press(7)">7</div>
+        <div class="key" onclick="press(8)">8</div>
+        <div class="key" onclick="press(9)">9</div>
+        <div class="key" onclick="press(0)">0</div>
+        <div class="key" onclick="backspace()">⌫</div>
+        <div class="key" onclick="checkCode()">↩</div>
+      </div>
+      <p id="overallHint"></p>
+      <button onclick="resetGame()">Restart</button>
+      <div id="congratsMsg" style="font-size: 18px; color: #00ff99; display: none;"></div>
+    </div>
+  </div>
+
+  <script>
+    let code = [], guesses = [], difficulty = 4, attempts = 5, timeLeft = 120, timer;
+    let voicePrimed = false;
+
+    function startGame() {
+      const name = document.getElementById("playerName").value || "Player";
+      difficulty = parseInt(document.getElementById("difficulty").value);
+      code = Array.from({ length: difficulty }, () => Math.floor(Math.random() * 10));
+      document.getElementById("playerScreen").style.display = "none";
+      document.getElementById("gameBox").style.display = "inline-block";
+      document.getElementById("welcomeMsg").textContent = `Welcome, ${name}!`;
+      document.getElementById("digitContainer").innerHTML = '';
+
+      for (let i = 0; i < difficulty; i++) {
+        document.getElementById("digitContainer").innerHTML += `
+          <div>
+            <input class='digit' id='digit${i + 1}' maxlength='1' />
+            <p id='hint${i + 1}' style='font-size:10px'></p>
+          </div>
+        `;
+      }
+
+      attempts = 5;
+      timeLeft = 60 + difficulty * 15;
+      document.getElementById("attemptsDisplay").textContent = `Attempts Left: ${attempts}`;
+      startTimer();
+      speak("Game started. Guess the code!");
+    }
+
+    function startTimer() {
+      clearInterval(timer);
+      timer = setInterval(() => {
+        timeLeft--;
+        const min = Math.floor(timeLeft / 60);
+        const sec = (timeLeft % 60).toString().padStart(2, '0');
+        document.getElementById("timerDisplay").textContent = `⏳ Time Left: ${min}:${sec}`;
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          document.getElementById("congratsMsg").innerHTML = "⏰ Time's up! Game Over.";
+          document.getElementById("congratsMsg").style.display = "block";
+        }
+      }, 1000);
+    }
+
+    function press(num) {
+      for (let i = 1; i <= difficulty; i++) {
+        const input = document.getElementById(`digit${i}`);
+        if (!input.value) {
+          input.value = num;
+          break;
+        }
+      }
+    }
+
+    function backspace() {
+      for (let i = difficulty; i >= 1; i--) {
+        const input = document.getElementById(`digit${i}`);
+        if (input.value) {
+          input.value = "";
+          document.getElementById(`hint${i}`).textContent = "";
+          input.classList.remove("correct", "wrong");
+          break;
+        }
+      }
+    }
+
+    function checkCode() {
+      guesses = [];
+      let correct = 0;
+      let hints = [];
+
+      for (let i = 0; i < difficulty; i++) {
+        const input = document.getElementById(`digit${i + 1}`);
+        if (!input.value) return alert("Enter full code!");
+        const guess = parseInt(input.value);
+        guesses.push(guess);
+        const diff = guess - code[i];
+
+        input.classList.remove("correct", "wrong");
+
+        if (guess === code[i]) {
+          input.classList.add("correct");
+          document.getElementById(`hint${i + 1}`).textContent = "✔ Correct";
+          correct++;
+        } else {
+          input.classList.add("wrong");
+          let msg = diff < 0 ? (diff <= -3 ? "⬇ Too low" : "⬇ Low") : (diff >= 3 ? "⬆ Too high" : "⬆ High");
+          document.getElementById(`hint${i + 1}`).textContent = msg;
+          hints.push(`Digit ${i + 1} is ${msg.replace(/⬆|⬇/, '')}`);
+        }
+      }
+
+      if (correct === difficulty) {
+        clearInterval(timer);
+        document.getElementById("congratsMsg").innerHTML = "🎉 You unlocked the code! 🎉";
+        document.getElementById("congratsMsg").style.display = "block";
+        triggerConfetti();
+        speak("Congratulations! You unlocked the code!");
+      } else {
+        attempts--;
+        document.getElementById("attemptsDisplay").textContent = `Attempts Left: ${attempts}`;
+        speak(hints.join(", "));
+        if (attempts === 0) {
+          clearInterval(timer);
+          document.getElementById("congratsMsg").innerHTML = "❌ Out of attempts!";
+          document.getElementById("congratsMsg").style.display = "block";
+        }
+      }
+    }
+
+    function resetGame() {
+      location.reload();
+    }
+
+    function triggerConfetti() {
+      confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
+    }
+
+    function speak(text) {
+      if (!voicePrimed) return;
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = 'en-US';
+      speechSynthesis.speak(utter);
+    }
+
+    document.body.addEventListener("click", function primeVoice() {
+      speechSynthesis.speak(new SpeechSynthesisUtterance(""));
+      voicePrimed = true;
+      document.body.removeEventListener("click", primeVoice);
+    });
+
+    if ('webkitSpeechRecognition' in window) {
+      const recog = new webkitSpeechRecognition();
+      recog.continuous = true;
+      recog.onresult = (event) => {
+        const speech = event.results[event.results.length - 1][0].transcript.toLowerCase();
+        const numMatch = speech.match(/code is ([0-9 ]+)/);
+        if (numMatch) {
+          const nums = numMatch[1].trim().split(" ");
+          nums.forEach((val, i) => {
+            if (i < difficulty) document.getElementById(`digit${i + 1}`).value = val;
+          });
+        }
+        if (speech.includes("check")) checkCode();
+        if (speech.includes("restart")) resetGame();
+      };
+      recog.start();
+    }
+  </script>
+</body>
+</html>
+
+
